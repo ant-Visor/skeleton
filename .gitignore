@@ -1,0 +1,9 @@
+/data/
+/data_*/
+/data */
+/modules/
+__pycache__/
+*.py[cod]
+*.db
+*.session
+.venv/

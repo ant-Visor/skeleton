@@ -1,0 +1,9 @@
+modules/
+data/
+data_*/
+data */
+__pycache__/
+*.py[cod]
+*.db
+*.session
+.git/
