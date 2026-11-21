@@ -2,6 +2,7 @@
 Module loader - finds and loads modules from ub/modules/
 """
 
+import asyncio
 import importlib
 import inspect
 import logging
@@ -152,8 +153,14 @@ class ModuleLoader:
         module_instance._handlers.append((pattern, handler))
         logger.info(f"Registered command: {self.prefix}{pattern}")
     
-    # Call on_load
-    await module_instance.on_load()
+    try:
+      await module_instance.on_load()
+    except (Exception, asyncio.CancelledError):
+      try:
+        await self._cleanup_module(module_instance)
+      except Exception:
+        logger.exception("Failed to clean up partially loaded module %s", name)
+      raise
     
     self.modules[name] = module_instance
     logger.info(f"Loaded module: {name}")
@@ -166,19 +173,22 @@ class ModuleLoader:
     
     module = self.modules[name]
     
-    # Call on_unload first
-    await module.on_unload()
-    
-    # Remove event handlers from Telethon
-    for pattern, handler in module._handlers:
-      try:
-        self.client.remove_event_handler(handler)
-      except Exception as e:
-        logger.warning(f"Failed to remove handler {pattern}: {e}")
-    
-    del self.modules[name]
+    try:
+      await self._cleanup_module(module)
+    finally:
+      del self.modules[name]
     logger.info(f"Unloaded module: {name}")
     return True
+
+  async def _cleanup_module(self, module: Module):
+    try:
+      await module.on_unload()
+    finally:
+      for pattern, handler in module._handlers:
+        try:
+          self.client.remove_event_handler(handler)
+        except Exception as e:
+          logger.warning(f"Failed to remove handler {pattern}: {e}")
   
   async def reload_module(self, name: str) -> bool:
     """Reload a module (unload + load)"""
