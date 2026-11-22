@@ -69,6 +69,8 @@ def get_credentials() -> tuple:
   api_hash = config.get("api_hash")
   
   if not api_id or not api_hash:
+    if os.getenv("UB_NONINTERACTIVE") == "1":
+      raise RuntimeError(f"Missing Telegram API credentials in {CONFIG_FILE}; check the worker data mount")
     print("\n" + "=" * 50)
     print("First time setup - enter your Telegram API credentials")
     print("Get them at https://my.telegram.org")
@@ -101,6 +103,9 @@ async def authorize(client: TelegramClient) -> bool:
   """
   if await client.is_user_authorized():
     return True
+  if os.getenv("UB_NONINTERACTIVE") == "1":
+    logger.error("Saved Telegram session is not authorized; check the worker data mount and registration")
+    return False
   # await client.start()
   
   print("\n" + "=" * 30)
@@ -195,6 +200,8 @@ async def main():
   # logger.info("Runtime: pid=%s entry=%s", os.getpid(), Path(__file__).resolve(),) # DEBUG
   # Get credentials
   api_id, api_hash = get_credentials()
+  if os.getenv("UB_NONINTERACTIVE") == "1" and not SESSION_FILE.with_suffix(".session").is_file():
+    raise RuntimeError(f"Missing Telegram session at {SESSION_FILE}.session; check the worker data mount")
   
   # Create client
   client = TelegramClient(
