@@ -1,5 +1,5 @@
-/modules/.*
-/data/.*
+/modules/*.*
+/data/*.*
 /data_*/
 /data */
 __pycache__/
